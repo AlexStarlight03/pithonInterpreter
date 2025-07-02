@@ -133,7 +133,7 @@ PiExpression = (
     | PiIn
     | PiSubscript
     | PiAttribute
-    | PiAttributeAssignment
+    | PiAttributeAssignment #Can be deleted, check to update from fork
 )
 
 PiStatement = (

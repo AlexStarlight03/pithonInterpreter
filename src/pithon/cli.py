@@ -30,16 +30,17 @@ def run_cli(ast_only=False):
         except Exception as e:
             print(f"Erreur: {e}")
 
-def run_file(filename, ast_only=False):
+def run_file(filename, ast_only=False): #TODO: add try and  except
     parser = SimpleParser()
     env = initial_env()
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, "r", encoding="utf-8") as f:   #is a raise needed here if the file is invalid?
         source = f.read()
     tree = parser.parse(source)
     if ast_only:
         print(tree)
         return
     evaluate(tree, env)
+    #ADD EXCEPT HERE
 
 def run_tests():
     test_dir = Path("tests/fixtures/programs")

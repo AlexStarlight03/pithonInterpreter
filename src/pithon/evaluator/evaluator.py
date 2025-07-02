@@ -3,9 +3,10 @@ from pithon.evaluator.primitive import check_type, get_primitive_dict
 from pithon.syntax import (
     PiAssignment, PiBinaryOperation, PiNumber, PiBool, PiStatement, PiProgram, PiSubscript, PiVariable,
     PiIfThenElse, PiNot, PiAnd, PiOr, PiWhile, PiNone, PiList, PiTuple, PiString,
-    PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn, PiReturn
+    PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn, PiReturn, PiClassDef, PiExpression, PiAttributeAssignment, PiAttribute
 )
-from pithon.evaluator.envvalue import EnvValue, VFunctionClosure, VList, VNone, VTuple, VNumber, VBool, VString
+
+from pithon.evaluator.envvalue import EnvValue, VFunctionClosure, VList, VNone, VTuple, VNumber, VBool, VString, VClassDef, VMethodClosure, VObject
 
 
 def initial_env() -> EnvFrame:
@@ -39,6 +40,34 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
 
     if isinstance(node, PiNumber):
         return VNumber(node.value)
+    
+    elif isinstance(node, PiClassDef): #TODO A MODIFIER CHECK SCREENSHOT
+        name = ...
+        methods = ...
+        c = VClassDef(name, methods)
+        insert(env, node.name, c)
+        return VNone(None)
+    
+    elif isinstance(node, PiAttribute): #TO CHECK TODO
+        obj = evaluate_stmt(node.object, env)
+        if not isinstance(obj, VObject):
+            raise ValueError("Mettre un message") #TODO mettre un vrai message
+        obj.attributes[node.attr]
+        if node.attr in obj.attributes:
+            return obj.attributes[node.attr]
+        else:
+            func = obj.class_def.methods[node.attr] #TODO add gestion d'erreur
+            return VMethodClosure(func, obj) #une valeur qui combine func et obj
+    
+    elif isinstance(node,PiAttributeAssignment): #TO CHECK TODO
+        value = evaluate_stmt(node.value, env)
+        obj = node.object #TODO presque mais pas tout a fait, objet prob a changer
+        if not isinstance(obj, VObject):
+            raise ValueError("allo") #TODO changer le message
+        attr = node.attr
+        #jai un objet un attribut et une nouvelle valeur
+        # je veux mettre a jour le dict de l<objet pour la cle attr
+        return value
 
     elif isinstance(node, PiBool):
         return VBool(node.value)
@@ -213,9 +242,47 @@ def _evaluate_function_call(node: PiFunctionCall, env: EnvFrame) -> EnvValue:
     # Fonction primitive
     if callable(func_val):
         return func_val(args)
+    # if isinstance(func_val, VFunctionClosure):
+        # raise TypeError("Tentative d'appel d'un objet non-fonction.") METTRE APRES LES 2 ELIF
+        # funcdef = func_val.funcdef
+        # closure_env = func_val.closure_env
+        # call_env = EnvFrame(parent=closure_env)
+        # for i, arg_name in enumerate(funcdef.arg_names):
+        #     if i < len(args):
+        #         call_env.insert(arg_name, args[i])
+        #     else:
+        #         raise TypeError("Argument manquant pour la fonction.")
+        # if funcdef.vararg:
+        #     varargs = VList(args[len(funcdef.arg_names):])
+        #     call_env.insert(funcdef.vararg, varargs)
+        # elif len(args) > len(funcdef.arg_names):
+        #     raise TypeError("Trop d'arguments pour la fonction.")
+        # result = VNone(value=None)
+        # try:
+        #     for stmt in funcdef.body:
+        #         result = evaluate_stmt(stmt, call_env)
+        # except ReturnException as ret:
+        #     return ret.value
+        # return result
     # Fonction utilisateur
-    if not isinstance(func_val, VFunctionClosure):
-        raise TypeError("Tentative d'appel d'un objet non-fonction.")
+    if isinstance(func_val, VFunctionClosure):
+        _call_vfunction_closure(func_val, args)
+    elif isinstance(func_val, VClassDef):
+        methods = func_val.methods
+        my_init = methods["__init__"]  #gestion erreur if no init method
+        new_obj = VObject(class_def=func_val, attributes={})
+        new_args = [new_obj] + args
+        _call_vfunction_closure(my_init, new_args)
+        pass
+    elif isinstance(func_val, VMethodClosure):   #EXEMPLE: x.function() doit retourner methos closure TODO
+        func = func_val.function #TODO func_val can be rename to smtg like like_a_func in the whole section here
+        obj = func_val.instance
+        new_args = [obj] + args
+        _call_vfunction_closure(func, new_args)
+    else:
+        raise ValueError("Type non supporté")  # OU raise TypeError("Tentative d'appel d'un objet non-fonction.") METTRE APRES LES 2 ELIF
+    
+def _call_vfunction_closure(func_val, args) -> EnvValue:
     funcdef = func_val.funcdef
     closure_env = func_val.closure_env
     call_env = EnvFrame(parent=closure_env)

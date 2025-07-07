@@ -41,35 +41,36 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
     if isinstance(node, PiNumber):
         return VNumber(node.value)
     
-    elif isinstance(node, PiClassDef): #TODO CHECK
+    elif isinstance(node, PiClassDef):
         name = node.name
         method_dict: dict = {}
+        # Création du dict de méthodes pour VClassDef
         for method in node.methods:
             method_dict[method.name] = VFunctionClosure(method, env)
         c = VClassDef(name, method_dict)
         insert(env, node.name, c)
         return VNone(None)
     
-    elif isinstance(node, PiAttribute): #TO CHECK TODO
+    elif isinstance(node, PiAttribute):
         obj = evaluate_stmt(node.object, env)
         if not isinstance(obj, VObject):
-            raise ValueError("Erreur : Obj devrait être un VObject")
+            raise ValueError(f"'{obj}' devrait être un VObject")
         if node.attr in obj.attributes:
             return obj.attributes[node.attr]
         else:
             if node.attr in obj.class_def.methods:
                 func = obj.class_def.methods[node.attr]
                 if not isinstance(func, VFunctionClosure):
-                    raise ValueError("Erreur : Func devrait être un VFunctionClosure.")
+                    raise ValueError(f"'{func}' devrait être un VFunctionClosure.")
                 return VMethodClosure(func, obj)
             else:
                 raise KeyError(f"L'attribut ou méthode '{node.attr}' n'existe pas.")
     
-    elif isinstance(node,PiAttributeAssignment): #TO CHECK TODO
+    elif isinstance(node, PiAttributeAssignment):
         value = evaluate_stmt(node.value, env)
         obj = evaluate_stmt(node.object, env)
         if not isinstance(obj, VObject):
-            raise ValueError("Erreur l'attribut ne donne pas une instance de Classe")
+            raise ValueError(f"'{obj}' devrait être un VObject")
         attr = node.attr
         obj.attributes[attr] = value
         return obj
@@ -252,12 +253,15 @@ def _evaluate_function_call(node: PiFunctionCall, env: EnvFrame) -> EnvValue:
         return _call_vfunction_closure(func_val, args)
     elif isinstance(func_val, VClassDef):
         methods = func_val.methods
-        my_init = methods['__init__']  #gestion erreur if no init method
+        if "__init__" in methods:
+            my_init = methods["__init__"]
+        else:
+            raise ValueError(f"La classe {func_val.name} n'a pas de constructeur '__init__'.")
         new_obj = VObject(class_def=func_val, attributes={})
         new_args = [new_obj] + args
         return _call_vfunction_closure(my_init, new_args)
     elif isinstance(func_val, VMethodClosure):
-        func = func_val.function #TODO func_val can be rename to smtg like like_a_func in the whole section here
+        func = func_val.function
         obj = func_val.instance
         new_args = [obj] + args
         return _call_vfunction_closure(func, new_args)
